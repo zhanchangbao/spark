@@ -1,13 +1,13 @@
-package com.jiyong
+package com.jiyong.graphx
 
+import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.apache.spark.{SparkConf, SparkContext}
-import org.neo4j.spark.Neo4j
-import org.apache.spark.graphx._
 import org.graphstream.graph.implementations.{AbstractEdge, SingleGraph, SingleNode}
+import org.neo4j.spark.Neo4j
 
-object SparkReadNeo4j {
+object GraphStream {
   def main(args: Array[String]): Unit = {
     // 创建SparkConf，配置Neo4j信息
     val conf = new SparkConf()
@@ -35,13 +35,11 @@ object SparkReadNeo4j {
       val Occupation = row.getAs[String]("Occupation")
       (id,(name,Occupation))
     })
-
-    userRDD.foreach(println(_))
-    println("**********************************************")
+    //    userRDD.foreach(println(_))
 
     // 拉取边的数据
     // 此处只能用loadRowRdd,用loadRelRdd会报错，No relationship query provided either as pattern or with rels()
-  val rawGraphedge: RDD[Row] = neo.cypher("MATCH (n:User)-[r]->(m:User) RETURN id(n) as source, " +
+    val rawGraphedge: RDD[Row] = neo.cypher("MATCH (n:User)-[r]->(m:User) RETURN id(n) as source, " +
       "id(m) as target, type(r) as relationship").loadRowRdd
 
     val relationshipRDD: RDD[Edge[String]] = rawGraphedge.map(row => {
@@ -51,8 +49,7 @@ object SparkReadNeo4j {
       Edge(srcid,dstid,relationship)
     })
 
-    relationshipRDD.foreach(println(_))
-    println("**********************************************")
+    //    relationshipRDD.foreach(println(_))
 
     // Define a default user in case there are relationship with missing user
     val defaultUser: (String, String) = ("John Doe", "Missing")
@@ -63,20 +60,27 @@ object SparkReadNeo4j {
     val graph: Graph[(String, String), String] = Graph(userRDD,relationshipRDD,defaultUser)
 
     // Count all users which are postdocs
-    val a: VertexRDD[(String, String)] = graph.vertices
+    val vertices: VertexRDD[(String, String)] = graph.vertices
 
-    val b: EdgeRDD[String] = graph.edges
+    val edges: EdgeRDD[String] = graph.edges
 
-    graph.vertices.filter(t => {t._2._2 == "postdoc"}).foreach(println(_))
-    println("**********************************************")
+
+
+    //    graph.vertices.filter(t => {t._2._2 == "postdoc"}).foreach(println(_))
+    //    println("**********************************************")
 
     // Count all the edges where src > dst
-    graph.edges.filter(t => {t.dstId < t.srcId}).foreach(println(_))
-    println("**********************************************")
+    //    graph.edges.filter(t => {t.dstId < t.srcId}).foreach(println(_))
+    //    println("**********************************************")
+
+    graph.degrees.foreach(println(_))
+    vertices.foreach(println(_))
+    println(edges.count())
+
 
     // Use the triplets view to create an RDD of facts.
-    graph.triplets.map(t => {t.srcAttr._1 + " is the " + t.attr + " of " + t.dstAttr._1}).foreach(println(_))
-    println("**********************************************")
+    //    graph.triplets.map(t => {t.srcAttr._1 + " is the " + t.attr + " of " + t.dstAttr._1}).foreach(println(_))
+    //    println("**********************************************")
 
     // 创建graphStream对象，对图数据分析结果进行可视化
     val graphStream = new SingleGraph("zcb")
@@ -84,7 +88,9 @@ object SparkReadNeo4j {
     for((id,t) <- graph.vertices.collect()){
       val node = graphStream.addNode(id.toString).asInstanceOf[SingleNode]
       // 加上顶点属性，可加可不加
-      node.addAttribute("ui.label",id.toString + "\n" + "name:" + t._1 + "\n"+"age" + t._2)
+      //      node.addAttribute("ui.label",id.toString + "\n" + "name:" + t._1 + "\n"+"age" + t._2)
+      node.addAttribute("ui.label",id.toString)
+      //      node.addAttribute("ui.label","name: " + t._1 + "\n"+"age" + t._2)
     }
 
     val ab: Array[Edge[String]] = graph.edges.collect()
@@ -92,12 +98,17 @@ object SparkReadNeo4j {
       val edge =  graphStream.addEdge(x.toString ++ y.toString,x.toString,y.toString,true).asInstanceOf[AbstractEdge]
       // 加上边属性，可加可不加
       edge.addAttribute("ui.label",x.toString)
+      edge.addAttribute("ui.label",y.toString)
     }
 
-    graphStream.display()
+    // 通过这个样式文件来控制可视化的方式
+    // ui.quality 和 ui.antialias 属性是告诉渲染引擎在渲染时以质量为先而非速度.
+    // 如果不设置样式文件, 顶点与边默认渲染出来的效果是黑色.
+    graphStream.addAttribute("ui.stylesheet","url(file:src/resources/style/stylesheet.css)")
+    graphStream.addAttribute("ui.quality")
+    graphStream.addAttribute("ui.antialias")
 
+    graphStream.display()
   }
 
 }
-
-

@@ -1,9 +1,8 @@
-package com.jiyong
+package com.jiyong.graphx
 
-
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkConf, SparkContext}
 
 object GraphxExample {
   def main(args: Array[String]): Unit = {
@@ -12,7 +11,6 @@ object GraphxExample {
       .setAppName(getClass.getSimpleName)
 
     val sc = new SparkContext(conf)
-
     // Create an RDD for the vertices
     /**
       * 导入import org.apache.spark.graphx.VertexId之后Long类型的会变成VertexId
@@ -22,14 +20,17 @@ object GraphxExample {
       * val users: (String, String) = ("rxin", "student")
       */
 
-    val userList: Array[(VertexId, (String, String))] = Array(
-      (3L,("rxin", "student")),
+    val userList: Array[(VertexId, (String, String))]
+    = Array(
+      (3L, ("rxin", "student")),
       (7L, ("jgonzal", "postdoc")),
       (5L, ("franklin", "prof")),
       (2L, ("istoica", "prof"))
     )
-    val userRDD: RDD[(VertexId, (String, String))] = sc.parallelize(userList)
-    val VD: VertexRDD[(String, String)] = VertexRDD(userRDD)
+    val userRDD: RDD[(VertexId, (String, String))]
+    = sc.parallelize(userList)
+    val VD: VertexRDD[(String, String)]
+    = VertexRDD(userRDD)
 
     // Create an RDD for edges
     /**
@@ -38,7 +39,8 @@ object GraphxExample {
       * 我们可以分别用graph.vertices和graph.edges成员将一个图解构为相应的顶点和边。
       */
 
-    val relationshipList: Array[Edge[String]] = Array(
+    val relationshipList: Array[Edge[String]]
+    = Array(
       Edge(3L, 7L, "collab"),
       Edge(5L, 3L, "advisor"),
       Edge(2L, 5L, "colleague"),
@@ -50,11 +52,13 @@ object GraphxExample {
 
 
     // Define a default user in case there are relationship with missing user
-    val defaultUser: (String, String) = ("John Doe", "Missing")
+    val defaultUser: (String, String)
+    = ("John Doe", "Missing")
 
     // Build the initial Graph,Graph的类型根据Vertex和Edge决定，Graph[(String, String), String]中
     // (String, String)代表Vertex属性类型，String代表Edge属性类型
-    val graph: Graph[(String, String), String] = Graph(userRDD,relationshipRDD,defaultUser)
+    val graph: Graph[(String, String), String]
+    = Graph(userRDD, relationshipRDD, defaultUser)
 
     // ************************************************************
     // 上面根据VertexRDD和EdgeRDD创建了graph，可以利用graph的各种方法
@@ -67,14 +71,22 @@ object GraphxExample {
       *
       */
 
-    val vertices: VertexRDD[(String, String)] = graph.vertices
-    val edges: EdgeRDD[String] = graph.edges
-    val triplets: RDD[EdgeTriplet[(String, String), String]] = graph.triplets
-    val degrees: VertexRDD[PartitionID] = graph.degrees
-    val inDegrees: VertexRDD[PartitionID] = graph.inDegrees
-    val outDegrees: VertexRDD[PartitionID] = graph.outDegrees
-    val numEdges: VertexId = graph.numEdges
-    val numVertices: VertexId = graph.numVertices
+    val vertices: VertexRDD[(String, String)]
+    = graph.vertices
+    val edges: EdgeRDD[String]
+    = graph.edges
+    val triplets: RDD[EdgeTriplet[(String, String), String]]
+    = graph.triplets
+    val degrees: VertexRDD[PartitionID]
+    = graph.degrees
+    val inDegrees: VertexRDD[PartitionID]
+    = graph.inDegrees
+    val outDegrees: VertexRDD[PartitionID]
+    = graph.outDegrees
+    val numEdges: VertexId
+    = graph.numEdges
+    val numVertices: VertexId
+    = graph.numVertices
 
     /**
       * graph.vertices返回一个VertexRDD[(String, String)]，它继承于 RDD[(VertexID, (String, String))]。
@@ -84,14 +96,21 @@ object GraphxExample {
       *
       */
     // Count all users which are postdocs
-    vertices.filter(t => {t._2._2 == "postdoc"})
+    vertices.filter(t => {
+      t._2._2 == "postdoc"
+    })
 
     // Count all the edges where src > dst
-    edges.filter(t => {t.dstId > t.dstId})
+    edges.filter(t => {
+      t.dstId > t.dstId
+    })
 
     // Use the triplets view to create an RDD of facts.
-    triplets.map(t => {t.srcAttr._1 + " is the " + t.attr + " of " + t.dstAttr._1}).foreach(println(_))
+    triplets.map(t => {
+      t.srcAttr._1 + " is the " + t.attr + " of " + t.dstAttr._1
+    }).foreach(println(_))
     println("****************************************************************************************")
+
     /**
       * subgraph⇒Boolean,(VertexId,VD)⇒Boolean):Graph[VD,ED])操作利用顶点和边的谓词（predicates），
       * 返回的图仅仅包含满足顶点谓词的顶点、满足边谓词的边以及满足顶点谓词的连接顶点（connect vertices）。
@@ -100,7 +119,8 @@ object GraphxExample {
       */
 
     // Remove missing vertices as well as the edges to connected to them
-    val validGraph: Graph[(String, String), String] = graph.subgraph(vpred = (id, attr) => attr._2 != "Missing")
+    val validGraph: Graph[(String, String), String]
+    = graph.subgraph(vpred = (id, attr) => attr._2 != "Missing")
 
     // The valid subgraph will disconnect users 4 and 5 by removing user 0
     validGraph.vertices.collect().foreach(println(_))
@@ -108,10 +128,9 @@ object GraphxExample {
       t.srcAttr._1 + " is the " + t.attr + " of " + t.dstAttr._1
     }).foreach(println(_))
 
-    val ccGraph = graph.connectedComponents()// No longer contains missing field
+    val ccGraph = graph.connectedComponents() // No longer contains missing field
 
     val validCCGraph = ccGraph.mask(validGraph)
-
   }
 
 }
